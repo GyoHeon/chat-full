@@ -1,43 +1,44 @@
 import mongoose from "mongoose";
-
-export type UserDocument = mongoose.Document & {
-  _id: mongoose.Types.ObjectId;
-  id: string;
-  password: string;
-  name: string;
-  picture: string;
-  chats: mongoose.Types.ObjectId[];
-
-  gravatar: () => string;
-};
+import { gravatar } from "../utils/gravatar";
 
 export interface AuthToken {
   accessToken: string;
   kind: string;
 }
 
-export const userSchema = new mongoose.Schema<UserDocument>(
+export const userSchema = new mongoose.Schema(
   {
     id: { type: String, unique: true },
     password: { type: String, required: true },
     name: { type: String, required: true },
     picture: String,
-    chats: Array,
+    chats: [{ type: String }],
   },
-  { timestamps: true }
+  {
+    methods: {
+      async comparePassword(password: string) {
+        if (!password) return false;
+
+        return await Bun.password.verify(password, this.password);
+      },
+    },
+    timestamps: true,
+  }
 );
+
+export type User = mongoose.Document &
+  mongoose.InferSchemaType<typeof userSchema>;
 
 /**
  * Password hash middleware.
  */
 userSchema.pre("save", async function save(next) {
-  const user = this as UserDocument;
-  if (!user.isModified("password")) {
-    return next();
-  }
+  const user = this as User;
+  if (user.isModified("password")) return next();
+
   user.chats = [];
   if (!user.picture) {
-    user.picture = user.gravatar();
+    user.picture = gravatar(user._id.toString());
   }
   const bcryptHash = await Bun.password.hash(user.password, {
     algorithm: "bcrypt",
@@ -47,10 +48,4 @@ userSchema.pre("save", async function save(next) {
   next();
 });
 
-userSchema.methods.comparePassword = async function (password: string) {
-  if (!password) return false;
-
-  return await Bun.password.verify(password, this.password);
-};
-
-export const User = mongoose.model<UserDocument>("User", userSchema, "User");
+export const User = mongoose.model<User>("User", userSchema, "User");

@@ -1,15 +1,11 @@
 # chat-full
 
-To install dependencies:
+`web socket` project made with `bun`!
 
-```bash
-bun install
-```
+This project have front and back code both.
 
-To run:
+## Stack
 
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.0.18. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+- bun
+- mongoose
+- webSocket
