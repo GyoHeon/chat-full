@@ -1,8 +1,8 @@
 import mongoose, { Types } from "mongoose";
+import { MessageList } from "./message.model";
 
 export type ChatDocument = mongoose.Document & {
   _id: mongoose.Types.ObjectId;
-  id: string;
   name: string;
   isPrivate: boolean;
   users: string[];
@@ -13,7 +13,7 @@ export type ChatDocument = mongoose.Document & {
 
 export const chatSchema = new mongoose.Schema<ChatDocument>(
   {
-    id: { type: String, required: true, unique: true },
+    _id: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     users: Array,
     messageId: Types.ObjectId,
@@ -27,7 +27,9 @@ export const chatSchema = new mongoose.Schema<ChatDocument>(
 chatSchema.pre("save", function (next) {
   const chat = this as ChatDocument;
 
-  chat.messageId = new mongoose.Types.ObjectId();
+  const newMessageList = new MessageList({});
+
+  chat.messageId = newMessageList._id;
 
   return next();
 });

@@ -6,7 +6,7 @@ export type UserDocument = mongoose.Document & {
   password: string;
   name: string;
   picture: string;
-  chats: string[];
+  chats: mongoose.Types.ObjectId[];
 
   gravatar: () => string;
 };
