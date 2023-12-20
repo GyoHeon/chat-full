@@ -34,7 +34,9 @@ export type User = mongoose.Document &
  */
 userSchema.pre("save", async function save(next) {
   const user = this as User;
-  if (user.isModified("password")) return next();
+
+  // Not new user
+  if (!user.isModified("id")) return next();
 
   user.chats = [];
   if (!user.picture) {
