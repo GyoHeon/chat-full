@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
-import { gravatar } from "../utils/gravatar";
+
+import { comparePassword, gravatar } from "@/utils/user";
 
 export interface AuthToken {
   accessToken: string;
@@ -16,10 +17,8 @@ export const userSchema = new mongoose.Schema(
   },
   {
     methods: {
-      async comparePassword(password: string) {
-        if (!password) return false;
-
-        return await Bun.password.verify(password, this.password);
+      async verifyPassword(password: string) {
+        return await comparePassword(password, this.password);
       },
     },
     timestamps: true,
