@@ -3,8 +3,10 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch index.ts",
-    "start": "bun run index.ts"
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts",
+    "start": "NODE_ENV=production bun index.ts",
+    "test": "bun test"
   },
   "devDependencies": {
     "bun-types": "latest"
@@ -13,6 +15,8 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@elysiajs/jwt": "^0.8.0",
+    "elysia": "^0.8.3",
     "mongoose": "^8.0.3"
   }
 }
