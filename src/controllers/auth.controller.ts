@@ -1,12 +1,13 @@
 import { JWTPayloadSpec } from "@elysiajs/jwt";
+import { InputSchema } from "elysia";
 
+import { TSignUp } from "@/index";
 import { Token } from "@/models/token.model";
 import { User } from "@/models/user.model";
 import { TUser } from "@/types/user";
 import { comparePassword } from "@/utils/user";
-import { InputSchema } from "elysia";
 
-export const postSignup = async ({ body, set }: InputSchema) => {
+export const postSignup = async ({ body, set }: typeof TSignUp) => {
   const { id, password, name, picture } = body;
 
   const isInvalidRequest =
@@ -17,9 +18,9 @@ export const postSignup = async ({ body, set }: InputSchema) => {
     !name;
 
   if (isInvalidRequest) {
-    return new Response(JSON.stringify({ message: "Invalid request" }), {
-      status: 400,
-    });
+    set.status = 400;
+
+    return { message: "Invalid request" };
   }
 
   try {
@@ -28,16 +29,12 @@ export const postSignup = async ({ body, set }: InputSchema) => {
     if (existingUser) {
       set.status = 401;
 
-      return new Response(
-        JSON.stringify({
-          message: "Account with that id address already exists.",
-        })
-      );
+      return { message: "Account with that id address already exists." };
     }
   } catch (err) {
     set.status = 500;
 
-    return new Response(JSON.stringify({ message: "Internal server error" }));
+    return { message: "Internal server error" };
   }
 
   try {
@@ -50,53 +47,37 @@ export const postSignup = async ({ body, set }: InputSchema) => {
 
     await user.save();
 
-    return new Response(JSON.stringify({ message: "User created" }));
+    return { message: "User created" };
   } catch (err) {
     console.error(err);
 
     set.status = 500;
 
-    return new Response(JSON.stringify({ message: "Internal server error" }));
+    return { message: "Internal server error" };
   }
 };
 
-export const postCheckDuplicateId = async ({ req, set }) => {
+export const postCheckDuplicateId = async ({ body, set }: typeof TSignUp) => {
+  const { id } = body;
+
+  const isInvalidRequest = !id || !id.match(/^[a-zA-Z0-9]+$/);
+
   try {
-    await check("id", "Id cannot be blank").notEmpty().run(req);
-    await check("id", "Id only alphabetic and numbers")
-      .matches(/^[a-zA-Z0-9]+$/)
-      .run(req);
-    await check("serverid", "ServerId cannot be blank").notEmpty().run(req);
-
-    const errors = validationResult(req);
-
-    if (!errors.isEmpty()) {
+    if (isInvalidRequest) {
       set.status = 401;
 
-      return errors;
+      return { message: "Invalid request" };
     }
 
-    const { id } = req.body;
+    const existingUser = await User.findOne({ id });
 
-    try {
-      const existingUser = await User.findOne({ id });
-
-      if (existingUser) {
-        set.status = 200;
-
-        return { isDuplicated: true };
-      }
-
-      set.status = 200;
-
-      return { isDuplicated: false };
-    } catch (err) {
-      set.status = 500;
-
-      return { message: "Internal server error" };
+    if (existingUser) {
+      return { isDuplicated: true };
     }
+
+    return { isDuplicated: false };
   } catch (err) {
-    console.warn(err);
+    console.error(err);
 
     set.status = 500;
 
@@ -109,7 +90,8 @@ export const postRefresh = async ({ body, set, jwt }: InputSchema) => {
 
   if (!refreshToken) {
     set.status = 403;
-    return "Unauthorized";
+
+    return { message: "Unauthorized" };
   }
 
   try {
@@ -134,11 +116,11 @@ export const postRefresh = async ({ body, set, jwt }: InputSchema) => {
     });
     return accessToken;
   } catch (err) {
-    console.warn(err);
+    console.error(err);
 
-    set.status = 403;
+    set.status = 500;
 
-    return "Unauthorized";
+    return { message: "Internal server error" };
   }
 };
 
@@ -181,11 +163,11 @@ export const patchUser = async ({ body, set }) => {
       return "User updated";
     }
   } catch (err) {
-    console.warn(err);
+    console.error(err);
 
-    set.status = 403;
+    set.status = 500;
 
-    return "Unauthorized";
+    return { message: "Internal server error" };
   }
 };
 
@@ -215,18 +197,20 @@ export const getUser = async ({ query, set }) => {
 
     return { user: responseUser };
   } catch (err) {
-    console.warn(err);
+    console.error(err);
 
-    set.status = 403;
+    set.status = 500;
 
-    return { message: "Unauthorized" };
+    return { message: "Internal server error" };
   }
 };
 
-export const authMe = async ({ headers, user, jwt }) => {
+export const authMe = async ({ headers, user, set, jwt }) => {
   const { authorization } = headers;
   const token = authorization?.split(" ")[1];
-  if (!token || token === "null" || token === "undefined") {
+  const isTokenInvalid = !token || token === "null" || token === "undefined";
+
+  if (isTokenInvalid) {
     set.status = 400;
 
     return { auth: false };
@@ -244,31 +228,25 @@ export const authMe = async ({ headers, user, jwt }) => {
 
       return { auth: false };
     } else {
-      try {
-        const userFromDb = await User.findOne({ id: req.user.id });
+      const userFromDb = await User.findOne({ id: req.user.id });
 
-        if (!userFromDb) {
-          set.status = 400;
+      if (!userFromDb) {
+        set.status = 400;
 
-          return { auth: false };
-        }
-
-        const responseUser = {
-          id: user.id,
-          name: userFromDb.name,
-          picture: userFromDb.picture,
-        };
-
-        return { auth: true, user: responseUser };
-      } catch (error) {
-        console.log(error);
-
-        set.status = 500;
-
-        return { message: "Internal server error" };
+        return { auth: false };
       }
+
+      const responseUser = {
+        id: user.id,
+        name: userFromDb.name,
+        picture: userFromDb.picture,
+      };
+
+      return { auth: true, user: responseUser };
     }
   } catch (err) {
+    console.error(err);
+
     set.status = 500;
 
     return { message: "Internal server error" };
@@ -315,7 +293,7 @@ export const postLogin = async ({ body, set, jwt }) => {
 
     return { accessToken, refreshToken };
   } catch (err) {
-    console.warn(err);
+    console.error(err);
 
     set.status = 401;
 
