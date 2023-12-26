@@ -158,7 +158,7 @@ export const postRefresh = async (app: Elysia) =>
 export const patchUser = async (app: Elysia) => {
   app.patch(
     "/auth/user",
-    ({ body, set }) => {
+    async ({ body, set }) => {
       const { name, picture } = body;
       if (!(name || picture)) {
         set.status = 400;
@@ -216,7 +216,7 @@ export const patchUser = async (app: Elysia) => {
 export const getUser = async (app: Elysia) => {
   app.get(
     "/auth/user",
-    ({ query, set }) => {
+    async ({ query, set }) => {
       const id = query.userId as string;
 
       if (!id && typeof id !== "string") {
@@ -256,7 +256,7 @@ export const getUser = async (app: Elysia) => {
 export const authMe = async (app: Elysia) => {
   app.get(
     "/auth/me",
-    ({ headers, user, set, jwt }) => {
+    async ({ headers, user, set, jwt }) => {
       const { authorization } = headers;
       const token = authorization?.split(" ")[1];
       const isTokenInvalid =

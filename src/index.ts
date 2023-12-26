@@ -11,7 +11,7 @@ app
   .use(cookie());
 
 // AWS health check
-app.get("/health", () => new Response("OK", { status: 200 }));
+app.get("/health", () => "OK");
 
 // 404 Not Found
 app.onError(({ code, set }) => {
