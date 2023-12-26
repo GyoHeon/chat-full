@@ -1,5 +1,5 @@
 import jwt from "@elysiajs/jwt";
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { postSignup } from "./controllers/auth.controller";
 
 const app = new Elysia();
@@ -18,20 +18,8 @@ app.onError(({ code, set }) => {
   }
 });
 
-export const TSignUp = {
-  body: t.Object({
-    id: t.String(),
-    password: t.String(),
-    name: t.String(),
-    email: t.String(),
-  }),
-  set: t.Object({
-    status: t.Number(),
-  }),
-};
-
 //auth
-app.get("/auth/signup", ({ body, set }) => postSignup({ body, set }), TSignUp);
+app.use(postSignup);
 
 app.listen(process.env.PORT as string);
 

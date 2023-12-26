@@ -1,5 +1,5 @@
 import { JWTPayloadSpec } from "@elysiajs/jwt";
-import { InputSchema } from "elysia";
+import { Elysia, InputSchema, t } from "elysia";
 
 import { TSignUp } from "@/index";
 import { Token } from "@/models/token.model";
@@ -7,55 +7,71 @@ import { User } from "@/models/user.model";
 import { TUser } from "@/types/user";
 import { comparePassword } from "@/utils/user";
 
-export const postSignup = async ({ body, set }: typeof TSignUp) => {
-  const { id, password, name, picture } = body;
+export const postSignup = async (app: Elysia) =>
+  app.get(
+    "/auth/signup",
+    async ({ body, set }) => {
+      const { id, password, name, picture } = body;
 
-  const isInvalidRequest =
-    !id ||
-    !id.match(/^[a-zA-Z0-9]+$/) ||
-    !password ||
-    password.length < 5 ||
-    !name;
+      const isInvalidRequest =
+        !id ||
+        !id.match(/^[a-zA-Z0-9]+$/) ||
+        !password ||
+        password.length < 5 ||
+        !name;
 
-  if (isInvalidRequest) {
-    set.status = 400;
+      if (isInvalidRequest) {
+        set.status = 400;
 
-    return { message: "Invalid request" };
-  }
+        return { message: "Invalid request" };
+      }
 
-  try {
-    const existingUser = await User.findOne({ id });
+      try {
+        const existingUser = await User.findOne({ id });
 
-    if (existingUser) {
-      set.status = 401;
+        if (existingUser) {
+          set.status = 401;
 
-      return { message: "Account with that id address already exists." };
+          return { message: "Account with that id address already exists." };
+        }
+      } catch (err) {
+        set.status = 500;
+
+        return { message: "Internal server error" };
+      }
+
+      try {
+        const user = new User({
+          id,
+          name,
+          password,
+          picture,
+        });
+
+        await user.save();
+
+        return { message: "User created" };
+      } catch (err) {
+        console.error(err);
+
+        set.status = 500;
+
+        return { message: "Internal server error" };
+      }
+    },
+    {
+      body: t.Object({
+        id: t.String(),
+        password: t.String(),
+        name: t.String(),
+        email: t.String(),
+        picture: t.String(),
+      }),
+      set: t.Object({
+        status: t.Number(),
+      }),
     }
-  } catch (err) {
-    set.status = 500;
-
-    return { message: "Internal server error" };
-  }
-
-  try {
-    const user = new User({
-      id,
-      name,
-      password,
-      picture,
-    });
-
-    await user.save();
-
-    return { message: "User created" };
-  } catch (err) {
-    console.error(err);
-
-    set.status = 500;
-
-    return { message: "Internal server error" };
-  }
-};
+  );
 
 export const postCheckDuplicateId = async ({ body, set }: typeof TSignUp) => {
   const { id } = body;
