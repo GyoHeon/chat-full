@@ -3,6 +3,7 @@ import { Elysia, t } from "elysia";
 
 import { Token } from "@/models/token.model";
 import { User } from "@/models/user.model";
+import { sendError } from "@/utils/error";
 import { comparePassword } from "@/utils/user";
 
 export const postSignup = async (app: Elysia) =>
@@ -43,12 +44,8 @@ export const postSignup = async (app: Elysia) =>
         await user.save();
 
         return { message: "User created" };
-      } catch (err) {
-        console.error(err, "postSignup error");
-
-        set.status = 500;
-
-        return { message: "Internal server error" };
+      } catch (error) {
+        return sendError({ error, set, log: "postSignup error" });
       }
     },
     {
@@ -84,12 +81,8 @@ export const postCheckDuplicateId = async (app: Elysia) =>
         }
 
         return { isDuplicated: false };
-      } catch (err) {
-        console.error(err, "postCheckDuplicateId error");
-
-        set.status = 500;
-
-        return { message: "Internal server error" };
+      } catch (error) {
+        return sendError({ error, set, log: "postCheckDuplicatedId error" });
       }
     },
     {
@@ -133,12 +126,8 @@ export const postRefresh = async (app: Elysia) =>
           expiresIn: "7d",
         });
         return accessToken;
-      } catch (err) {
-        console.error(err, "postRefresh error");
-
-        set.status = 500;
-
-        return { message: "Internal server error" };
+      } catch (error) {
+        return sendError({ error, set, log: "postRefresh error" });
       }
     },
     {
@@ -185,12 +174,8 @@ export const patchUser = async (app: Elysia) => {
 
           return "User updated";
         }
-      } catch (err) {
-        console.error(err, "patchUser error");
-
-        set.status = 500;
-
-        return { message: "Internal server error" };
+      } catch (error) {
+        return sendError({ error, set, log: "patchUser error" });
       }
     },
     {
@@ -233,12 +218,8 @@ export const getUser = async (app: Elysia) => {
         };
 
         return { user: responseUser };
-      } catch (err) {
-        console.error(err, "getUser error");
-
-        set.status = 500;
-
-        return { message: "Internal server error" };
+      } catch (error) {
+        return sendError({ error, set, log: "getUser error" });
       }
     },
     {}
@@ -291,12 +272,8 @@ export const authMe = async (app: Elysia) => {
 
           return { auth: true, user: responseUser };
         }
-      } catch (err) {
-        console.error(err, "authMe error");
-
-        set.status = 500;
-
-        return { message: "Internal server error" };
+      } catch (error) {
+        return sendError({ error, set, log: "authMe error" });
       }
     });
 };
@@ -339,12 +316,8 @@ export const postLogin = async (app: Elysia) => {
         }
 
         return { accessToken, refreshToken };
-      } catch (err) {
-        console.error(err, "postLogin error");
-
-        set.status = 401;
-
-        return { message: "Invalid id or password" };
+      } catch (error) {
+        return sendError({ error, set, log: "postLogin error" });
       }
     },
     {
