@@ -1,9 +1,8 @@
-import { JWTPayloadSpec } from "@elysiajs/jwt";
+import jwt from "@elysiajs/jwt";
 import { Elysia, t } from "elysia";
 
 import { Token } from "@/models/token.model";
 import { User } from "@/models/user.model";
-import { TUser } from "@/types/user";
 import { comparePassword } from "@/utils/user";
 
 export const postSignup = async (app: Elysia) =>
@@ -33,13 +32,7 @@ export const postSignup = async (app: Elysia) =>
 
           return { message: "Account with that id address already exists." };
         }
-      } catch (err) {
-        set.status = 500;
 
-        return { message: "Internal server error" };
-      }
-
-      try {
         const user = new User({
           id,
           name,
@@ -51,7 +44,7 @@ export const postSignup = async (app: Elysia) =>
 
         return { message: "User created" };
       } catch (err) {
-        console.error(err);
+        console.error(err, "postSignup error");
 
         set.status = 500;
 
@@ -92,7 +85,7 @@ export const postCheckDuplicateId = async (app: Elysia) =>
 
         return { isDuplicated: false };
       } catch (err) {
-        console.error(err);
+        console.error(err, "postCheckDuplicateId error");
 
         set.status = 500;
 
@@ -107,7 +100,7 @@ export const postCheckDuplicateId = async (app: Elysia) =>
   );
 
 export const postRefresh = async (app: Elysia) =>
-  app.post(
+  app.use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! })).post(
     "/auth/refresh",
     async ({ body, set, jwt }) => {
       const { refreshToken } = body;
@@ -135,12 +128,13 @@ export const postRefresh = async (app: Elysia) =>
 
           return "Unauthorized";
         }
-        const accessToken = jwt.sign({ id }, process.env.ACCESS_TOKEN_SECRET, {
+        const accessToken = jwt.sign({
+          id,
           expiresIn: "7d",
         });
         return accessToken;
       } catch (err) {
-        console.error(err);
+        console.error(err, "postRefresh error");
 
         set.status = 500;
 
@@ -149,9 +143,6 @@ export const postRefresh = async (app: Elysia) =>
     },
     {
       body: t.Object({ refreshToken: t.String() }),
-      jwt: t.Object({
-        verify: t.Function([t.String()], t.Boolean()),
-      }),
     }
   );
 
@@ -171,7 +162,7 @@ export const patchUser = async (app: Elysia) => {
         [picture && "picture"]: picture,
       };
 
-      const user = body.user;
+      const { user } = body;
 
       try {
         const userFromDb = await User.findOne({ id: user.id });
@@ -192,12 +183,10 @@ export const patchUser = async (app: Elysia) => {
             });
           }
 
-          set.status = 200;
-
           return "User updated";
         }
       } catch (err) {
-        console.error(err);
+        console.error(err, "patchUser error");
 
         set.status = 500;
 
@@ -208,6 +197,9 @@ export const patchUser = async (app: Elysia) => {
       body: t.Object({
         name: t.String(),
         picture: t.String(),
+        user: t.Object({
+          id: t.String(),
+        }),
       }),
     }
   );
@@ -242,7 +234,7 @@ export const getUser = async (app: Elysia) => {
 
         return { user: responseUser };
       } catch (err) {
-        console.error(err);
+        console.error(err, "getUser error");
 
         set.status = 500;
 
@@ -254,9 +246,9 @@ export const getUser = async (app: Elysia) => {
 };
 
 export const authMe = async (app: Elysia) => {
-  app.get(
-    "/auth/me",
-    async ({ headers, user, set, jwt }) => {
+  app
+    .use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! }))
+    .get("/auth/me", async ({ headers, set, jwt }) => {
       const { authorization } = headers;
       const token = authorization?.split(" ")[1];
       const isTokenInvalid =
@@ -269,22 +261,21 @@ export const authMe = async (app: Elysia) => {
       }
 
       try {
-        jwt.verify(
-          token,
-          process.env.ACCESS_TOKEN_SECRET,
-          (err, user: TUser) => {
-            if (user?.id) {
-              user = user as JWTPayloadSpec as TUser;
-            }
-          }
-        );
+        const isValid = await jwt.verify(token);
+        if (!isValid) {
+          set.status = 400;
 
-        if (!user) {
+          return { auth: false };
+        }
+
+        const { id } = isValid;
+
+        if (!id) {
           set.status = 400;
 
           return { auth: false };
         } else {
-          const userFromDb = await User.findOne({ id: req.user.id });
+          const userFromDb = await User.findOne({ id });
 
           if (!userFromDb) {
             set.status = 400;
@@ -293,7 +284,7 @@ export const authMe = async (app: Elysia) => {
           }
 
           const responseUser = {
-            id: user.id,
+            id: id,
             name: userFromDb.name,
             picture: userFromDb.picture,
           };
@@ -301,23 +292,17 @@ export const authMe = async (app: Elysia) => {
           return { auth: true, user: responseUser };
         }
       } catch (err) {
-        console.error(err);
+        console.error(err, "authMe error");
 
         set.status = 500;
 
         return { message: "Internal server error" };
       }
-    },
-    {
-      jwt: t.Object({
-        verify: t.Function([t.String()], t.Boolean()),
-      }),
-    }
-  );
+    });
 };
 
 export const postLogin = async (app: Elysia) => {
-  app.post(
+  app.use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! })).post(
     "/auth/login",
     async ({ body, set, jwt }) => {
       const { id, password } = body;
@@ -336,12 +321,8 @@ export const postLogin = async (app: Elysia) => {
         return { message: "Invalid password" };
       }
 
-      const accessToken = jwt.sign({ id }, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "7d",
-      });
-      const refreshToken = jwt.sign({ id }, process.env.REFRESH_TOKEN_SECRET, {
-        expiresIn: "2w",
-      });
+      const accessToken = jwt.sign({ id, expiresIn: "7d" });
+      const refreshToken = jwt.sign({ id, expiresIn: "2w" });
 
       const token = {
         userId: id,
@@ -359,7 +340,7 @@ export const postLogin = async (app: Elysia) => {
 
         return { accessToken, refreshToken };
       } catch (err) {
-        console.error(err);
+        console.error(err, "postLogin error");
 
         set.status = 401;
 

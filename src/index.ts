@@ -1,14 +1,11 @@
 import { cookie } from "@elysiajs/cookie";
-import jwt from "@elysiajs/jwt";
 import { Elysia } from "elysia";
 
 import { postSignup } from "./controllers/auth.controller";
 
 const app = new Elysia();
 
-app
-  .use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET as string }))
-  .use(cookie());
+app.use(cookie());
 
 // AWS health check
 app.get("/health", () => "OK");
