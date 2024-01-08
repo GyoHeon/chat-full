@@ -1,6 +1,7 @@
 import jwt from "@elysiajs/jwt";
 import { Elysia } from "elysia";
 
+import { isAuthenticated } from "@/middlewares/auth";
 import { Token } from "@/models/token.model";
 import { User } from "@/models/user.model";
 import { t_patchUser, t_postRefresh, t_user } from "@/types/elysia/user";
@@ -122,9 +123,9 @@ export const postRefresh = async (app: Elysia) =>
   );
 
 export const patchUser = async (app: Elysia) =>
-  app.use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! })).patch(
+  app.use(isAuthenticated).patch(
     "/user",
-    async ({ body, jwt, set }) => {
+    async ({ body, userId, set }) => {
       const { name, picture } = body;
       if (!(name || picture)) {
         set.status = 400;
@@ -132,34 +133,22 @@ export const patchUser = async (app: Elysia) =>
         return "Invalid request";
       }
 
-      const newData = {
-        ...(name && { name }),
-        ...(picture && { picture }),
-      };
-
-      const { user } = body;
-
       try {
-        const userFromDb = await User.findOne({ id: user.id });
+        const userFromDb = await User.findOne({ id: userId });
 
         if (!userFromDb) {
           set.status = 403;
 
           return "Unauthorized";
-        } else {
-          if (newData.name) {
-            await userFromDb.updateOne({
-              name: newData.name,
-            });
-          }
-          if (newData.picture) {
-            await userFromDb.updateOne({
-              picture: newData.picture,
-            });
-          }
-
-          return "User updated";
         }
+        if (name) {
+          await userFromDb.updateOne({ name });
+        }
+        if (picture) {
+          await userFromDb.updateOne({ picture });
+        }
+
+        return "User updated";
       } catch (error) {
         return sendError({ error, set, log: "patchUser error" });
       }
@@ -199,55 +188,27 @@ export const getUser = async (app: Elysia) =>
   });
 
 export const authMe = async (app: Elysia) =>
-  app
-    .use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! }))
-    .get("/me", async ({ headers, set, jwt }) => {
-      const { authorization } = headers;
-      const token = authorization?.split(" ")[1];
-      const isTokenInvalid =
-        !token || token === "null" || token === "undefined";
+  app.use(isAuthenticated).get("/me", async ({ set, userId }) => {
+    try {
+      const userFromDb = await User.findOne({ id: userId });
 
-      if (isTokenInvalid) {
+      if (!userFromDb) {
         set.status = 400;
 
         return { auth: false };
       }
 
-      try {
-        const isValid = await jwt.verify(token);
-        if (!isValid) {
-          set.status = 400;
+      const responseUser = {
+        id: userId,
+        name: userFromDb.name,
+        picture: userFromDb.picture,
+      };
 
-          return { auth: false };
-        }
-
-        const { id } = isValid;
-
-        if (!id) {
-          set.status = 400;
-
-          return { auth: false };
-        } else {
-          const userFromDb = await User.findOne({ id });
-
-          if (!userFromDb) {
-            set.status = 400;
-
-            return { auth: false };
-          }
-
-          const responseUser = {
-            id: id,
-            name: userFromDb.name,
-            picture: userFromDb.picture,
-          };
-
-          return { auth: true, user: responseUser };
-        }
-      } catch (error) {
-        return sendError({ error, set, log: "authMe error" });
-      }
-    });
+      return { auth: true, user: responseUser };
+    } catch (error) {
+      return sendError({ error, set, log: "authMe error" });
+    }
+  });
 
 export const postLogin = async (app: Elysia) =>
   app.use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! })).post(
