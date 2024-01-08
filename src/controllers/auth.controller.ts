@@ -8,7 +8,7 @@ import { comparePassword } from "@/utils/user";
 
 export const postSignup = async (app: Elysia) =>
   app.post(
-    "/auth/signup",
+    "/signup",
     async ({ body, set }) => {
       const { id, password, name, picture } = body;
 
@@ -61,7 +61,7 @@ export const postSignup = async (app: Elysia) =>
 
 export const postCheckDuplicateId = async (app: Elysia) =>
   app.post(
-    "/auth/check/id",
+    "/check/id",
     async ({ body, set }) => {
       const { id } = body;
 
@@ -94,7 +94,7 @@ export const postCheckDuplicateId = async (app: Elysia) =>
 
 export const postRefresh = async (app: Elysia) =>
   app.use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! })).post(
-    "/auth/refresh",
+    "/refresh",
     async ({ body, set, jwt }) => {
       const { refreshToken } = body;
 
@@ -135,9 +135,9 @@ export const postRefresh = async (app: Elysia) =>
     }
   );
 
-export const patchUser = async (app: Elysia) => {
+export const patchUser = async (app: Elysia) =>
   app.patch(
-    "/auth/user",
+    "/user",
     async ({ body, set }) => {
       const { name, picture } = body;
       if (!(name || picture)) {
@@ -188,48 +188,42 @@ export const patchUser = async (app: Elysia) => {
       }),
     }
   );
-};
 
-export const getUser = async (app: Elysia) => {
-  app.get(
-    "/auth/user",
-    async ({ query, set }) => {
-      const id = query.userId as string;
+export const getUser = async (app: Elysia) =>
+  app.get("/user", async ({ query, set }) => {
+    const id = query.userId as string;
 
-      if (!id && typeof id !== "string") {
-        set.status = 400;
+    if (!id && typeof id !== "string") {
+      set.status = 400;
 
-        return { message: "Invalid id" };
+      return { message: "Invalid id" };
+    }
+
+    try {
+      const userFromDb = await User.findOne({ id });
+
+      if (!userFromDb) {
+        set.status = 403;
+
+        return { message: "Unauthorized" };
       }
 
-      try {
-        const userFromDb = await User.findOne({ id });
+      const responseUser = {
+        id: userFromDb.id,
+        name: userFromDb.name,
+        picture: userFromDb.picture,
+      };
 
-        if (!userFromDb) {
-          set.status = 403;
+      return { user: responseUser };
+    } catch (error) {
+      return sendError({ error, set, log: "getUser error" });
+    }
+  });
 
-          return { message: "Unauthorized" };
-        }
-
-        const responseUser = {
-          id: userFromDb.id,
-          name: userFromDb.name,
-          picture: userFromDb.picture,
-        };
-
-        return { user: responseUser };
-      } catch (error) {
-        return sendError({ error, set, log: "getUser error" });
-      }
-    },
-    {}
-  );
-};
-
-export const authMe = async (app: Elysia) => {
+export const authMe = async (app: Elysia) =>
   app
     .use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! }))
-    .get("/auth/me", async ({ headers, set, jwt }) => {
+    .get("/me", async ({ headers, set, jwt }) => {
       const { authorization } = headers;
       const token = authorization?.split(" ")[1];
       const isTokenInvalid =
@@ -276,11 +270,10 @@ export const authMe = async (app: Elysia) => {
         return sendError({ error, set, log: "authMe error" });
       }
     });
-};
 
-export const postLogin = async (app: Elysia) => {
+export const postLogin = async (app: Elysia) =>
   app.use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! })).post(
-    "/auth/login",
+    "/login",
     async ({ body, set, jwt }) => {
       const { id, password } = body;
 
@@ -327,4 +320,15 @@ export const postLogin = async (app: Elysia) => {
       }),
     }
   );
-};
+
+export const auth = (app: Elysia) =>
+  app.group("/auth", (app) =>
+    app
+      .use(getUser)
+      .use(authMe)
+      .use(postSignup)
+      .use(postCheckDuplicateId)
+      .use(postRefresh)
+      .use(postLogin)
+      .use(patchUser)
+  );

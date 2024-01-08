@@ -11,5 +11,3 @@ const newPeople = new User({
 });
 
 await newPeople.save();
-
-const people = await User.findOne({ id: "test" });

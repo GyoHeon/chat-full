@@ -1,7 +1,7 @@
 import { cookie } from "@elysiajs/cookie";
 import { Elysia } from "elysia";
 
-import { postSignup } from "./controllers/auth.controller";
+import { auth } from "./controllers/auth.controller";
 
 const app = new Elysia();
 
@@ -20,7 +20,7 @@ app.onError(({ code, set }) => {
 });
 
 //auth
-app.use(postSignup);
+app.use(auth);
 
 app.listen(process.env.PORT as string);
 
