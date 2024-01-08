@@ -1,8 +1,9 @@
 import jwt from "@elysiajs/jwt";
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 
 import { Token } from "@/models/token.model";
 import { User } from "@/models/user.model";
+import { t_patchUser, t_postRefresh, t_user } from "@/types/elysia/user";
 import { sendError } from "@/utils/error";
 import { comparePassword } from "@/utils/user";
 
@@ -48,15 +49,7 @@ export const postSignup = async (app: Elysia) =>
         return sendError({ error, set, log: "postSignup error" });
       }
     },
-    {
-      body: t.Object({
-        id: t.String(),
-        password: t.String(),
-        name: t.String(),
-        email: t.String(),
-        picture: t.String(),
-      }),
-    }
+    t_user
   );
 
 export const postCheckDuplicateId = async (app: Elysia) =>
@@ -85,11 +78,7 @@ export const postCheckDuplicateId = async (app: Elysia) =>
         return sendError({ error, set, log: "postCheckDuplicatedId error" });
       }
     },
-    {
-      body: t.Object({
-        id: t.String(),
-      }),
-    }
+    t_user
   );
 
 export const postRefresh = async (app: Elysia) =>
@@ -130,15 +119,13 @@ export const postRefresh = async (app: Elysia) =>
         return sendError({ error, set, log: "postRefresh error" });
       }
     },
-    {
-      body: t.Object({ refreshToken: t.String() }),
-    }
+    t_postRefresh
   );
 
 export const patchUser = async (app: Elysia) =>
-  app.patch(
+  app.use(jwt({ secret: process.env.ACCESS_TOKEN_SECRET! })).patch(
     "/user",
-    async ({ body, set }) => {
+    async ({ body, jwt, set }) => {
       const { name, picture } = body;
       if (!(name || picture)) {
         set.status = 400;
@@ -147,8 +134,8 @@ export const patchUser = async (app: Elysia) =>
       }
 
       const newData = {
-        [name && "name"]: name,
-        [picture && "picture"]: picture,
+        ...(name && { name }),
+        ...(picture && { picture }),
       };
 
       const { user } = body;
@@ -178,15 +165,7 @@ export const patchUser = async (app: Elysia) =>
         return sendError({ error, set, log: "patchUser error" });
       }
     },
-    {
-      body: t.Object({
-        name: t.String(),
-        picture: t.String(),
-        user: t.Object({
-          id: t.String(),
-        }),
-      }),
-    }
+    t_patchUser
   );
 
 export const getUser = async (app: Elysia) =>
@@ -313,12 +292,7 @@ export const postLogin = async (app: Elysia) =>
         return sendError({ error, set, log: "postLogin error" });
       }
     },
-    {
-      body: t.Object({
-        id: t.String(),
-        password: t.String(),
-      }),
-    }
+    t_user
   );
 
 export const auth = (app: Elysia) =>

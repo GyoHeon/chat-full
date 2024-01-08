@@ -19,7 +19,6 @@ app.onError(({ code, set }) => {
   }
 });
 
-//auth
 app.use(auth);
 
 app.listen(process.env.PORT as string);
