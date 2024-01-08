@@ -68,7 +68,6 @@ export const postCheckDuplicateId = async (app: Elysia) =>
         }
 
         const existingUser = await User.findOne({ id });
-
         if (existingUser) {
           return { isDuplicated: true };
         }
