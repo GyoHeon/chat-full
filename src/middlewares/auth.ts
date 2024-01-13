@@ -1,3 +1,5 @@
+import { User } from "@/models/user.model";
+import { sendError } from "@/utils/error";
 import jwt from "@elysiajs/jwt";
 import { Elysia } from "elysia";
 
@@ -44,3 +46,22 @@ export const isAuthenticated = (app: Elysia) =>
 
       return { userId: id };
     });
+
+export const withUser = (app: Elysia) =>
+  app.resolve(isAuthenticated).derive(async ({ userId, set }) => {
+    try {
+      const userFromDb = await User.findOne({ id: userId });
+      if (!userFromDb) {
+        set.status = 403;
+
+        return {
+          success: false,
+          message: "Unauthorized",
+        };
+      }
+
+      return { user: userFromDb };
+    } catch (error) {
+      return sendError({ error, set, log: "withUser middleware error" });
+    }
+  });

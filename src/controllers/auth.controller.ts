@@ -1,7 +1,7 @@
 import jwt from "@elysiajs/jwt";
 import { Elysia } from "elysia";
 
-import { isAuthenticated } from "@/middlewares/auth";
+import { isAuthenticated, withUser } from "@/middlewares/auth";
 import { Token } from "@/models/token.model";
 import { User } from "@/models/user.model";
 import { t_patchUser, t_postRefresh, t_user } from "@/types/elysia/user";
@@ -123,7 +123,7 @@ export const postRefresh = async (app: Elysia) =>
   );
 
 export const patchUser = async (app: Elysia) =>
-  app.use(isAuthenticated).patch(
+  app.resolve(isAuthenticated).patch(
     "/user",
     async ({ body, userId, set }) => {
       const { name, picture } = body;
@@ -188,20 +188,12 @@ export const getUser = async (app: Elysia) =>
   });
 
 export const authMe = async (app: Elysia) =>
-  app.use(isAuthenticated).get("/me", async ({ set, userId }) => {
+  app.resolve(withUser).get("/me", async ({ set, userId, user }) => {
     try {
-      const userFromDb = await User.findOne({ id: userId });
-
-      if (!userFromDb) {
-        set.status = 400;
-
-        return { auth: false };
-      }
-
       const responseUser = {
-        id: userId,
-        name: userFromDb.name,
-        picture: userFromDb.picture,
+        id: user.id,
+        name: user.name,
+        picture: user.picture,
       };
 
       return { auth: true, user: responseUser };
