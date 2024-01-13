@@ -6,6 +6,7 @@ import { Token } from "@/models/token.model";
 import { User } from "@/models/user.model";
 import { t_patchUser, t_postRefresh, t_user } from "@/types/elysia/user";
 import { sendError } from "@/utils/error";
+import { userResponseParser } from "@/utils/responseParser";
 import { comparePassword } from "@/utils/user";
 
 export const postSignup = async (app: Elysia) =>
@@ -175,11 +176,7 @@ export const getUser = async (app: Elysia) =>
         return { message: "Unauthorized" };
       }
 
-      const responseUser = {
-        id: userFromDb.id,
-        name: userFromDb.name,
-        picture: userFromDb.picture,
-      };
+      const responseUser = userResponseParser(userFromDb);
 
       return { user: responseUser };
     } catch (error) {
@@ -190,11 +187,7 @@ export const getUser = async (app: Elysia) =>
 export const authMe = async (app: Elysia) =>
   app.resolve(withUser).get("/me", async ({ set, userId, user }) => {
     try {
-      const responseUser = {
-        id: user.id,
-        name: user.name,
-        picture: user.picture,
-      };
+      const responseUser = userResponseParser(user);
 
       return { auth: true, user: responseUser };
     } catch (error) {
