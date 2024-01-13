@@ -239,15 +239,3 @@ export const postLogin = async (app: Elysia) =>
     },
     t_user
   );
-
-export const auth = (app: Elysia) =>
-  app.group("/auth", (app) =>
-    app
-      .use(getUser)
-      .use(authMe)
-      .use(postSignup)
-      .use(postCheckDuplicateId)
-      .use(postRefresh)
-      .use(postLogin)
-      .use(patchUser)
-  );
